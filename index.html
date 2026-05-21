@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aesthetic PDF Reader 💅 (Auto-load Era)</title>
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+  
+  <style>
+    :root {
+      /* Baza - Tryb Cozy ☕ */
+      --bg-color: #f7ede2;
+      --text-color: #84a59d;
+      --toolbar-bg: #f5cac3;
+      --btn-bg: #f28482;
+      --btn-text: #fff;
+      /* Filtr, który barwi samą kartkę PDFa na kremowo! */
+      --pdf-filter: sepia(0.3) saturate(1.2) brightness(0.95);
+    }
+
+    /* Tryb Ciemny Brąz - Dark Academia vibes 🕰️ */
+    .dark-brown-mode {
+      --bg-color: #2c1a16;
+      --text-color: #d7ccc8;
+      --toolbar-bg: #3e2723;
+      --btn-bg: #5d4037;
+      --btn-text: #d7ccc8;
+      --pdf-filter: invert(0.9) sepia(0.8) hue-rotate(330deg) brightness(0.8) saturate(1.5);
+    }
+
+    /* Tryb Fioletowy - Euphoria / Cyberpunk rizz 💜 */
+    .purple-mode {
+      --bg-color: #1a0b2e;
+      --text-color: #e0b0ff;
+      --toolbar-bg: #2d1b4e;
+      --btn-bg: #673ab7;
+      --btn-text: #fff;
+      --pdf-filter: invert(0.9) sepia(0.5) hue-rotate(220deg) brightness(0.85) saturate(2);
+    }
+
+    /* Tryb Y2K Pink - Main Character 💖 */
+    .y2k-pink-mode {
+      --bg-color: #ffe4e1;
+      --text-color: #ff1493;
+      --toolbar-bg: #ffb6c1;
+      --btn-bg: #ff69b4;
+      --btn-text: #fff;
+      --pdf-filter: sepia(0.4) hue-rotate(290deg) saturate(2) brightness(0.95);
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      font-family: 'Comic Sans MS', 'Arial', sans-serif;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      transition: all 0.4s ease;
+      min-height: 100vh;
+    }
+
+    .toolbar {
+      background-color: var(--toolbar-bg);
+      padding: 15px;
+      width: 100%;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 20px;
+      flex-wrap: wrap;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    button, select {
+      background-color: var(--btn-bg);
+      color: var(--btn-text);
+      border: none;
+      padding: 10px 20px;
+      border-radius: 25px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 1rem;
+      transition: 0.3s;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
+
+    button:hover {
+      transform: translateY(-2px) scale(1.05);
+      filter: brightness(1.1);
+    }
+
+    #canvas-container {
+      margin-top: 20px;
+      margin-bottom: 20px;
+      overflow: auto;
+      max-width: 95vw;
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    }
+
+    /* Magia nakładania koloru na PDF! */
+    #pdf-render {
+      display: block;
+      transition: filter 0.4s ease;
+      filter: var(--pdf-filter);
+    }
+    
+    .status {
+      font-weight: bold;
+      background: var(--btn-bg);
+      color: var(--btn-text);
+      padding: 10px 15px;
+      border-radius: 20px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="toolbar">
+    <div>
+      <button id="prev-page">⬅️ Back</button>
+      <span class="status">Strona: <span id="page-num">0</span> / <span id="page-count">0</span></span>
+      <button id="next-page">Next ➡️</button>
+    </div>
+
+    <div>
+      <button id="zoom-out">➖ Zoom</button>
+      <button id="zoom-in">➕ Zoom</button>
+    </div>
+
+    <select id="theme-selector">
+      <option value="cozy">Cozy Kocyk ☕</option>
+      <option value="dark-brown">Dark Academia 🕰️</option>
+      <option value="purple">Midnight Fiolet 💜</option>
+      <option value="y2k-pink">Y2K Baddie 💖</option>
+    </select>
+  </div>
+
+  <div id="canvas-container">
+    <canvas id="pdf-render"></canvas>
+  </div>
+
+  <script>
+    const pdfjsLib = window['pdfjs-dist/build/pdf'];
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+
+    let pdfDoc = null,
+        // Pobieramy zapisaną stronę z LocalStorage! Jak nie ma, to dajemy 1 (totalny delulu-proof)
+        pageNum = parseInt(localStorage.getItem('my-pdf-page')) || 1,
+        pageIsRendering = false,
+        pageNumPending = null,
+        scale = 1.5,
+        canvas = document.getElementById('pdf-render'),
+        ctx = canvas.getContext('2d');
+
+    // Renderuje giga ładnie stronkę
+    const renderPage = num => {
+      pageIsRendering = true;
+
+      pdfDoc.getPage(num).then(page => {
+        const viewport = page.getViewport({ scale });
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
+
+        const renderCtx = { canvasContext: ctx, viewport: viewport };
+
+        page.render(renderCtx).promise.then(() => {
+          pageIsRendering = false;
+          if (pageNumPending !== null) {
+            renderPage(pageNumPending);
+            pageNumPending = null;
+          }
+        });
+
+        document.getElementById('page-num').textContent = num;
+        
+        // Zapisujemy progress, żebyś nie musiała szukać jak wejdziesz znowu ✨
+        localStorage.setItem('my-pdf-page', num);
+      });
+    };
+
+    const queueRenderPage = num => {
+      if (pageIsRendering) {
+        pageNumPending = num;
+      } else {
+        renderPage(num);
+      }
+    };
+
+    // Kontrolki stron
+    document.getElementById('prev-page').addEventListener('click', () => {
+      if (pageNum <= 1) return;
+      pageNum--;
+      queueRenderPage(pageNum);
+    });
+
+    document.getElementById('next-page').addEventListener('click', () => {
+      if (pageNum >= pdfDoc.numPages) return;
+      pageNum++;
+      queueRenderPage(pageNum);
+    });
+
+    // Zoomowanie
+    document.getElementById('zoom-in').addEventListener('click', () => {
+      scale += 0.2;
+      queueRenderPage(pageNum);
+    });
+
+    document.getElementById('zoom-out').addEventListener('click', () => {
+      if (scale <= 0.6) return;
+      scale -= 0.2;
+      queueRenderPage(pageNum);
+    });
+
+    // AUTO-ŁADOWANIE PLIKU Z FOLDERU (plssss pamiętaj o nazwie)
+    const loadPdf = () => {
+      const url = './ksiazka.pdf'; // NAZWIJ TAK SWÓJ PLIK! ⚠️
+      
+      pdfjsLib.getDocument(url).promise.then(pdfDoc_ => {
+        pdfDoc = pdfDoc_;
+        document.getElementById('page-count').textContent = pdfDoc.numPages;
+        
+        // Zabezpieczenie: jeśli zapisana strona jest poza zakresem nowej książki
+        if (pageNum > pdfDoc.numPages) pageNum = 1; 
+        
+        renderPage(pageNum);
+      }).catch(err => {
+        console.error("Bruh, błąd:", err);
+        alert("O nie! 💀 Nie mogę wczytać 'ksiazka.pdf'. Upewnij się, że plik ma dokładnie taką nazwę i odpalasz to przez lokalny serwer (np. Live Server w VSCode), inaczej przeglądarka zablokuje plik!");
+      });
+    };
+
+    // Obsługa motywów
+    const themeSelector = document.getElementById('theme-selector');
+    
+    // Zapisywanie i wczytywanie motywu z LocalStorage
+    const savedTheme = localStorage.getItem('my-pdf-theme') || 'cozy';
+    themeSelector.value = savedTheme;
+    if (savedTheme !== 'cozy') {
+      document.body.className = `${savedTheme}-mode`;
+    }
+
+    themeSelector.addEventListener('change', (e) => {
+      const mode = e.target.value;
+      localStorage.setItem('my-pdf-theme', mode);
+      
+      if (mode === 'cozy') {
+        document.body.className = '';
+      } else {
+        document.body.className = `${mode}-mode`;
+      }
+    });
+
+    // Odpalamy przy starcie 🚀
+    loadPdf();
+  </script>
+</body>
+</html>

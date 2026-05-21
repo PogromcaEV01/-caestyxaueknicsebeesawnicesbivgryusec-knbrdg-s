@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Aesthetic PDF Reader 💅 (GitHub Pages Era)</title>
+  <title>Aesthetic PDF Reader 💅 (Lo-fi Era)</title>
   
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
   
@@ -15,7 +15,6 @@
       --toolbar-bg: #ffdbb5;
       --btn-bg: #ff8c00;
       --btn-text: #fff;
-      /* Ciepły, pomarańczowy filtr na PDF-a */
       --pdf-filter: sepia(0.6) hue-rotate(-15deg) saturate(1.8) brightness(0.95);
     }
 
@@ -117,20 +116,69 @@
       border-radius: 20px;
     }
 
-    /* Żeby selecty wyglądały fajnie */
     .file-select {
       background-color: transparent;
       color: var(--text-color);
       border: 2px solid var(--btn-bg);
+    }
+
+    /* Magia YouTube Playera 🎧💅 */
+    .yt-widget {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 320px;
+      background: var(--toolbar-bg);
+      border-radius: 15px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+      z-index: 999;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s;
+    }
+
+    .yt-widget.hidden {
+      transform: translateY(150%) scale(0.8);
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .yt-header {
+      background: var(--btn-bg);
+      color: var(--btn-text);
+      padding: 10px;
+      text-align: center;
+      font-weight: bold;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .yt-header button {
+      padding: 4px 10px;
+      font-size: 0.8rem;
+      box-shadow: none;
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    .yt-header button:hover {
+      background: rgba(255, 255, 255, 0.4);
+      transform: scale(1.1);
+    }
+
+    .yt-widget iframe {
+      border: none;
+      width: 100%;
+      height: 180px;
     }
   </style>
 </head>
 <body>
 
   <div class="toolbar">
-    <!-- TUTAJ DODAJE SWOJE PDFY Z GITHUBA! W value="nazwa_pliku.pdf" -->
     <select id="file-selector" class="file-select">
-      <option value="Carnagie Dale - Jak zdobyć przyjaciół i zjednać sobie ludzi.pdf">📚 Moja Książka</option>
+      <option value="ksiazka.pdf">📚 Moja Książka</option>
       <option value="notatki.pdf">📝 Notatki</option>
       <option value="jakis_inny_plik.pdf">✨ Coś innego</option>
     </select>
@@ -152,10 +200,20 @@
       <option value="dark-brown">Dark Academia 🕰️</option>
       <option value="purple">Midnight Fiolet 💜</option>
     </select>
+
+    <button id="toggle-yt">🎵 Vibe Check</button>
   </div>
 
   <div id="canvas-container">
     <canvas id="pdf-render"></canvas>
+  </div>
+
+  <div id="yt-widget" class="yt-widget">
+    <div class="yt-header">
+      <span>Lo-Fi Vibe 🎧☕</span>
+      <button id="close-yt">❌</button>
+    </div>
+    <iframe src="https://www.youtube.com/embed/jfKfPfyJRdk" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
   </div>
 
   <script>
@@ -190,8 +248,6 @@
         });
 
         document.getElementById('page-num').textContent = num;
-        
-        // Zapisujemy progress DLA KONKRETNEGO PLIKU! Totalnie OP.
         localStorage.setItem(`pdf-page-${currentFile}`, num);
       });
     };
@@ -227,7 +283,6 @@
       queueRenderPage(pageNum);
     });
 
-    // Ładowanie wybranego PDFa 🚀
     const loadPdf = (fileName) => {
       currentFile = fileName;
       const url = `./${fileName}`;
@@ -236,7 +291,6 @@
         pdfDoc = pdfDoc_;
         document.getElementById('page-count').textContent = pdfDoc.numPages;
         
-        // Pobieramy zapisaną stronę dla TEGO KONKRETNEGO pdfa
         let savedPage = parseInt(localStorage.getItem(`pdf-page-${currentFile}`));
         pageNum = (savedPage && savedPage <= pdfDoc.numPages) ? savedPage : 1;
         
@@ -247,13 +301,11 @@
       });
     };
 
-    // Nasłuchujemy zmiany na liście plików
     const fileSelector = document.getElementById('file-selector');
     fileSelector.addEventListener('change', (e) => {
       loadPdf(e.target.value);
     });
 
-    // --- MOTYWY (Theming) ---
     const themeSelector = document.getElementById('theme-selector');
     const savedTheme = localStorage.getItem('my-pdf-theme') || 'cozy';
     themeSelector.value = savedTheme;
@@ -273,7 +325,20 @@
       }
     });
 
-    // Odpalamy pierwszy plik z listy przy starcie ✨
+    // --- YT PLAYER LOGIC 🎧 ---
+    const ytWidget = document.getElementById('yt-widget');
+    const toggleYtBtn = document.getElementById('toggle-yt');
+    const closeYtBtn = document.getElementById('close-yt');
+
+    // Chowanie/pokazywanie playera
+    toggleYtBtn.addEventListener('click', () => {
+      ytWidget.classList.toggle('hidden');
+    });
+
+    closeYtBtn.addEventListener('click', () => {
+      ytWidget.classList.add('hidden');
+    });
+
     loadPdf(fileSelector.value);
   </script>
 </body>
